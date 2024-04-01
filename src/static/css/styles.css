@@ -1,0 +1,107 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+    /* Changed background color */
+    color: #333;
+    /* Changed text color */
+}
+
+.container {
+    max-width: 800px;
+    /* Increased max-width for better readability */
+    margin: 20px auto;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* Adjusted box shadow */
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #007bff;
+    /* Changed title color */
+}
+
+.profile-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    /* Reduced margin */
+}
+
+.profile-info label {
+    font-weight: bold;
+    flex: 0 0 100px;
+    margin-right: 10px;
+    /* Added margin for label separation */
+}
+
+.profile-info p {
+    margin: 0;
+}
+
+.section {
+    margin-bottom: 30px;
+    /* Increased margin */
+}
+
+.section h2 {
+    margin-bottom: 15px;
+    /* Reduced margin */
+    color: #555;
+    /* Changed heading color */
+}
+
+ul {
+
+    padding-left: 0;
+}
+
+.edit-button {
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    /* Increased padding */
+    font-size: 14px;
+    /* Slightly reduced font size */
+    transition: background-color 0.3s;
+    /* Added transition effect */
+}
+
+.edit-button:hover {
+    background-color: #0056b3;
+    /* Darker color on hover */
+}
+
+button {
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    /* Increased padding */
+    font-size: 14px;
+    /* Slightly reduced font size */
+    transition: background-color 0.3s;
+    /* Added transition effect */
+}
+
+button:hover {
+    background-color: #0056b3;
+    /* Darker color on hover */
+}
+
+input[type="text"] {
+    width: 50%;
+    /* Set the initial width */
+    box-sizing: border-box;
+    /* Include padding and border in the width */
+}

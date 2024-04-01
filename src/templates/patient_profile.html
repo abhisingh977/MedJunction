@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>Patient Profile</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Patient Profile</h1>
+        <div class="profile-info">
+            <label for="name">Full Name:</label>
+            <p id="name">{{ patient.name }}</p>
+        </div>
+        <div class="profile-info">
+            <label for="sex">Sex:</label>
+            <p id="sex">{{ patient.sex }}</p>
+        </div>
+        <div class="profile-info">
+            <label for="location">Location:</label>
+            <p id="location">{{ patient.location }}</p>
+        </div>
+        <div class="profile-info">
+            <label for="insurance_provider">Insurance Provider:</label>
+            <p id="insurance_provider">{{ patient.insurance_provider }}</p>
+        </div>
+        <div class="profile-info">
+            <label for="insurance">Insurance:</label>
+            <p id="insurance">{{ patient.insurance }}</p>
+        </div>
+        <button class="edit-button">Edit</button>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>Chief Complaints</h2>
+            <ul id="complaints-new">
+            </ul>
+            <ul id="complaints">
+                {% for complaint in complaints %}
+                <li>{{ complaint }}</li>
+                {% endfor %}
+            </ul>
+            <button onclick="toggleEditableTextDate('complaints-new')">Add</button>
+        </div>
+
+        <div class="section">
+            <h2>Co-morbidities</h2>
+
+            <ul id="co-morbidities-new" contenteditable="false"> <!-- Changed id to ensure uniqueness -->
+            </ul>
+            <ul id="co-morbidities"> <!-- Changed id to ensure uniqueness -->
+                {% for co_morbiditie in co_morbidities %}
+                <li>{{ co_morbiditie }}</li>
+                {% endfor %}
+            </ul>
+            <button onclick="toggleEditableTextDate('co-morbidities-new')">Add</button>
+        </div>
+
+        <div class="section">
+            <h2>Addiction History</h2>
+
+            <ul id="addiction-history-new" contenteditable="false"> <!-- Changed id to ensure uniqueness -->
+                {% for addiction in addiction_history %}
+                <li>{{ addiction }}</li>
+                {% endfor %}
+            </ul>
+            <ul id="addiction-history" contenteditable="false"> <!-- Changed id to ensure uniqueness -->
+
+            </ul>
+            <button onclick="toggleEditableTextDate('addiction-history-new')">Add</button>
+        </div>
+
+        <div class="section">
+            <h2>Past History</h2>
+            <ul id="past-history-new"> <!-- Changed id to ensure uniqueness -->
+                {% for past_his in past_history %}
+                <li>{{ past_his }}</li>
+                {% endfor %}
+            </ul>
+            <ul id="past-history" contenteditable="false"> <!-- Changed id to ensure uniqueness -->
+            </ul>
+            <button onclick="toggleEditableTextDate('past-history-new')">Add</button>
+        </div>
+        <div class="section">
+            <h2>Surgery History</h2>
+            <ul id="surgery-history-new" contenteditable="false"> <!-- Changed id to ensure uniqueness -->
+                {% for surgery in surgery_history %}
+                <li>{{ surgery }}</li>
+                {% endfor %}
+            </ul>
+            <ul id="surgery-history" contenteditable="false"> <!-- Changed id to ensure uniqueness -->
+            </ul>
+            <button onclick="toggleEditableTextDate('surgery-history-new')">Add</button>
+        </div>
+
+        <div class="section">
+            <h2>Reports</h2>
+            <ul id="reports-history" contenteditable="false">
+                {% for report in reports %}
+                <li>{{ report }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Upload New Report</h2>
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+                <input type="file" name="file" id="fileInput" accept=".pdf, .jpg, .jpeg, .png">
+                <input type="text" name="filename" id="fileNameInput" placeholder="Enter file name">
+                <button type="submit">Upload</button>
+                <p id="fileName"></p>
+            </form>
+        </div>
+    </div>
+    <script src="/static/js/script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <title>Patient Profile</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Edit Patient Profile</h1>
+        <form action="/edit-profile" method="POST">
+            <div class="profile-info">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" name="name" value="{{ patient.name }}" required>
+            </div>
+            <div class="profile-info">
+                <label for="sex">Sex:</label>
+                <input type="text" id="sex" name="sex" value="{{ patient.sex }}" required>
+            </div>
+            <div class="profile-info">
+                <label for="location">Location:</label>
+                <input type="text" id="location" name="location" value="{{ patient.location }}" required>
+            </div>
+            <div class="profile-info">
+                <label for="insurance_provider">Insurance Provider:</label>
+                <input type="text" id="insurance_provider" name="insurance_provider"
+                    value="{{ patient.insurance_provider }}" required>
+            </div>
+            <div class="profile-info">
+                <label for="insurance">Insurance No:</label>
+                <input type="text" id="insurance" name="insurance" value="{{ patient.insurance }}" required>
+            </div>
+
+            <button type="submit">Save Changes</button>
+        </form>
+    </div>
+</body>
+
+</html>
