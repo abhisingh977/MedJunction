@@ -12,24 +12,30 @@ from google.cloud import firestore
 from uuid import uuid1
 from PIL import Image
 from io import BytesIO
-
+from datetime import datetime, timedelta
 # from dotenv import load_dotenv
 import logging
 import os
 from google.cloud import storage
 from werkzeug.utils import secure_filename
+from flask import send_file
+import pytz
 
 
 app = Flask("healthstaffconnect")
 
 logging.basicConfig(level=logging.INFO)
 # load_dotenv(".env")
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "healthstaffconnect-e913cb44aef7.json" #os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-db = firestore.Client(project="healthstaffconnect")
-app = Flask("healthstaffconnect")
-paitent_profile_bucket = "paitent_profile_bucket"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "medjunction-8df36356d2d0.json" 
+# db = firestore.Client(project="healthstaffconnect")
+# app = Flask("healthstaffconnect")
+bucket_name = "paitent_profile_bucket"
 
 session_uuid = str(uuid1())
+# Get current Indian Standard Time (IST)
+ist = pytz.timezone('Asia/Kolkata')
+current_time = datetime.now(ist)
+
 
 storage_client = storage.Client()
 # Specify the allowed file extensions
@@ -93,6 +99,10 @@ def index():
         surgery_history=reversed(surgery_history),
         reports=reversed(reports),
     )
+
+@app.route('/edit_profile_page')
+def edit_profile_page():
+    return render_template('edit_profile.html',patient=patient_data)
 
 
 @app.route("/save_text", methods=["POST"])
@@ -168,15 +178,42 @@ def upload_file():
         filename = secure_filename(file.filename)
         file_extension = os.path.splitext(filename)[1]
         file_extension = filename.split(".")[-1]
-        filename = request.form["filename"] + "." + file_extension
+        custom_filename = request.form["filename"]
 
+        formatted_time = current_time.strftime("%d-%m-%Y")
+        filename = f"{formatted_time} {custom_filename}.{file_extension}"
         if file:
-            file.save(filename)  # Save the file with the provided filename
-            reports.append(filename)
+            # Upload file to Google Cloud Storage
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(filename)
+            blob.upload_from_file(file)
+            reports.append(filename)  # Append the URL instead of the file object
         else:
-            return "Error uploading Please try again!!!!"
+            return "Error uploading. Please try again!!!!"
         return redirect(url_for("index"))
 
+@app.route("/download/<filename>", methods=["GET"])
+def download_file(filename):
+    # Here you will fetch the file from Google Cloud Storage
+    # You'll need to provide the correct bucket name and implement the logic to retrieve the file
+    # For simplicity, I'm assuming you have a storage_client and bucket_name already defined
+
+    # Fetch the blob from Google Cloud Storage
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(filename)
+
+    # Check if the file exists
+    if blob.exists():
+        # Download the file to a temporary location
+        temp_file_path = f"paitent_profile_bucket/{filename}"  # You can adjust this path as needed
+        blob.download_to_filename(temp_file_path)
+
+        # Serve the file for download
+        return send_file(temp_file_path, as_attachment=True)
+
+
+    # If the file doesn't exist, return a 404 error
+    return "File not found", 404
 
 if __name__ == "__main__":
     app.run(debug=True, port=8080)

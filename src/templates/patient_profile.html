@@ -31,7 +31,7 @@
             <label for="insurance">Insurance:</label>
             <p id="insurance">{{ patient.insurance }}</p>
         </div>
-        <button class="edit-button">Edit</button>
+        <a href="/edit_profile_page" class="edit-button">Edit Profile</a>
     </div>
 
     <div class="container">
@@ -101,7 +101,9 @@
             <h2>Reports</h2>
             <ul id="reports-history" contenteditable="false">
                 {% for report in reports %}
-                <li>{{ report }}</li>
+                <li>
+                    <a href="{{ url_for('download_file', filename=report.split('/')[-1]) }}">Download {{ report.split('/')[-1] }}</a>
+                </li>
                 {% endfor %}
             </ul>
         </div>
