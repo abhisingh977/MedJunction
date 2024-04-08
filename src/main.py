@@ -246,6 +246,10 @@ def discard_text():
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
+    doc = doc_ref.get()
+    reports=doc.get("reports")
+    print("reports")
+    print(reports)
     if request.method == "POST":
         file = request.files["file"]
         filename = secure_filename(file.filename)
@@ -253,6 +257,8 @@ def upload_file():
         file_extension = filename.split(".")[-1]
         custom_filename = request.form["filename"]
         filename = f"{formatted_time} {custom_filename}.{file_extension}"
+        reports.append(filename)
+        doc_ref.update({"reports": reports})
         if file:
             # Upload file to Google Cloud Storage
             bucket = storage_client.bucket(bucket_name)
@@ -287,4 +293,4 @@ def download_file(filename):
     return "File not found", 404
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8080)
+    app.run(debug=True, port=8081)

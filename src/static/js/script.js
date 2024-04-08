@@ -1,22 +1,3 @@
-// Get the current date
-// Create a new Date object
-var currentDate = new Date();
-
-// Get the current time zone offset in minutes
-var offset = currentDate.getTimezoneOffset();
-
-// Calculate the offset for IST (Indian Standard Time), which is UTC+5:30
-var istOffset = offset + (330); // 5 hours 30 minutes = 330 minutes
-
-// Calculate the UTC time by adding the offset
-var utcTime = currentDate.getTime() + (istOffset * 60 * 1000);
-
-// Create a new Date object with the UTC time
-var istDate = new Date(utcTime);
-
-// Format the date to string in IST timezone
-var istDateString = istDate.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata' });
-
 
 
 let selectedFile;
@@ -57,7 +38,7 @@ function uploadFile() {
 function saveTextToFlask(text, source) {
 
     // Concatenate the current date and text
-    var textWithDate = istDateString + ": " + text;
+    var textWithDate = text;
 
     // Send an AJAX request to Flask route to save the entered text
     // You can use fetch or other methods to send the data to Flask
@@ -147,7 +128,7 @@ function discardTextFromFlask(text, source) {
     // Get the current date
 
     // Concatenate the current date and text
-    var textWithDate = istDateString + ": " + text;
+    var textWithDate = text;
 
     fetch('/discard_text', {
         method: 'POST',

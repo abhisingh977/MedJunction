@@ -102,7 +102,7 @@
             <ul id="reports-history" contenteditable="false">
                 {% for report in reports %}
                 <li>
-                    <a href="{{ url_for('download_file', filename=report.split('/')[-1]) }}">Download {{ report.split('/')[-1] }}</a>
+                    <a href="{{ url_for('download_file', filename=report.split('/')[-1]) }}" target="_blank">Download {{ report.split('/')[-1] }}</a>
                 </li>
                 {% endfor %}
             </ul>
