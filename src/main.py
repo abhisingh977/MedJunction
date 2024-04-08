@@ -27,7 +27,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "medjunction-8df36356d2d0.json"
 # Get current Indian Standard Time (IST)
 ist = pytz.timezone('Asia/Kolkata')
 current_time = datetime.now(ist)
-
+formatted_time = current_time.strftime("%d-%m-%Y")
 # Specify the allowed file extensions
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf"}
 
@@ -164,6 +164,7 @@ def edit_profile():
 def save_text():
     data = request.json
     text = data.get("text")
+    text =  formatted_time +":  "+ text
     source = data.get("source")
     doc = doc_ref.get()
 
@@ -251,8 +252,6 @@ def upload_file():
         file_extension = os.path.splitext(filename)[1]
         file_extension = filename.split(".")[-1]
         custom_filename = request.form["filename"]
-
-        formatted_time = current_time.strftime("%d-%m-%Y")
         filename = f"{formatted_time} {custom_filename}.{file_extension}"
         if file:
             # Upload file to Google Cloud Storage
