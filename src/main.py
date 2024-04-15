@@ -40,7 +40,7 @@ def login_is_required(function):
 
 logging.basicConfig(level=logging.INFO)
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "medjunction-8df36356d2d0.json" 
-GOOGLE_CLIENT_ID = 
+GOOGLE_CLIENT_ID = "460397404581-3qu7r9if8aqsdi2nv5a3g8cvuet8dmc8.apps.googleusercontent.com"
 client_secrets_file = "client_secret.json"
 print(client_secrets_file)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -150,16 +150,12 @@ def index():
 
 @app.route("/get_all_profile")
 def get_all_profile():
-    doc_ref = paitent_collection.document(session["google_id"])
-
-    if doc.exists:
-        patient_data = {"name": doc.get("name"),
-        "insurance": doc.get("insurance"),
-        "insurance_provider": doc.get("insurance_provider"),
-        "location": doc.get("location"),
-        "sex": doc.get("sex"),
-        "total_profile": doc.get("total_profile")
-        }
+    user_ref = paitent_collection.document(session["google_id"])
+    collections = user_ref.collections()
+    patient_data = []
+    for collection in collections:
+        for doc in collection.stream():
+            patient_data.append(doc.to_dict())
 
     return render_template("all_profile.html", patient_data=patient_data)
 
@@ -172,8 +168,8 @@ def create_profile():
         if doc.exists:
             total_profile = int(doc.get("total_profile")) + 1
             user_ref.update({"total_profile": str(total_profile)})
-
-        paitent_ref = user_ref.collection(str(total_profile)).document(str(total_profile))
+        total_profile_str = str(total_profile)
+        paitent_ref = user_ref.collection(total_profile_str).document(total_profile_str)
         print(f"{paitent_ref} data")
         paitent_ref.set(
         {
@@ -182,6 +178,7 @@ def create_profile():
         "location": request.form["location"],
         "insurance_provider": request.form["insurance"],
         "insurance": request.form["insurance_provider"],
+        "collection_id": total_profile_str,
         })
         doc = paitent_ref.get()
         if doc.exists:
@@ -189,7 +186,8 @@ def create_profile():
             "insurance": doc.get("insurance"),
             "insurance_provider": doc.get("insurance_provider"),
             "location": doc.get("location"),
-            "sex": doc.get("sex")
+            "sex": doc.get("sex"),
+            "collection_id": total_profile_str,
             }
         # Redirect to the profile page after editing
         return render_template("home.html")
@@ -198,9 +196,13 @@ def create_profile():
 
 @app.route("/patient_profile")
 def patient_profile():
-
-    doc_ref = paitent_collection.document(session["google_id"])
-    doc = doc_ref.get()
+    collection_id = request.args.get("collection_id")
+    if not collection_id:
+        return "collection_id is required to view the profile"
+    
+    user_ref = paitent_collection.document(session["google_id"])
+    paitent_ref = user_ref.collection(collection_id).document(collection_id)
+    doc = paitent_ref.get()
     if doc.exists:
         patient_data = {
             "name": doc.get("name"),
@@ -208,14 +210,40 @@ def patient_profile():
             "insurance_provider": doc.get("insurance_provider"),
             "location": doc.get("location"),
             "sex": doc.get("sex"),
+            "collection_id": doc.get("collection_id"),
         }
 
-        complaints_data = doc.get("complaints_data")
-        co_morbidities = doc.get("co_morbidities")
-        past_history = doc.get("past_history")
-        addiction_history = doc.get("addiction_history")
-        surgery_history = doc.get("surgery_history")
-        reports = doc.get("reports")
+        try:
+            complaints_data = doc.get("complaints_data")
+        except KeyError:
+            complaints_data = []
+
+        try:
+            co_morbidities = doc.get("co_morbidities")
+        except KeyError:
+            co_morbidities = []
+
+        try:
+            past_history = doc.get("past_history")
+        except KeyError:
+            past_history = []
+
+        try:
+            addiction_history = doc.get("addiction_history")
+        except KeyError:
+            addiction_history = []
+
+        try:
+            surgery_history = doc.get("surgery_history")
+        except KeyError:
+            surgery_history = []
+
+        try:
+            reports = doc.get("reports")
+        except KeyError:
+            reports = []
+
+
     else:
         return "Profile does not exist"
     return render_template(
@@ -229,29 +257,51 @@ def patient_profile():
         reports=reversed(reports),
     )
 
-@app.route("/edit-profile", methods=["GET", "POST"])
+@app.route("/edit_profile", methods=["GET", "POST"])
 def edit_profile():
     if request.method == "POST":
-        doc_ref.update(
-        {
-        "name": request.form["name"],
-        "sex": request.form["sex"],
-        "location": request.form["location"],
-        "insurance_provider": request.form["insurance"],
-        "insurance": request.form["insurance_provider"],
+        collection_id = request.form.get("collection_id")
+        if not collection_id:
+            return "collection_id is required to view the profile", 400  # Return a 400 Bad Request status
+        user_ref = paitent_collection.document(session["google_id"])
+        paitent_ref = user_ref.collection(collection_id).document(collection_id)
+        doc = paitent_ref.get()
+        if not doc.exists:
+            return "Patient data not found", 404  # Return a 404 Not Found status
+
+        # Update patient data
+        paitent_ref.update({
+            "name": request.form["name"],
+            "sex": request.form["sex"],
+            "location": request.form["location"],
+            "insurance_provider": request.form["insurance_provider"],
+            "insurance": request.form["insurance"],
         })
-        doc = doc_ref.get()
-        if doc.exists:
-            patient_data = {"name": doc.get("name"),
+
+        # Redirect to the profile page after editing
+        return redirect(url_for("patient_profile", collection_id=collection_id))
+
+    elif request.method == "GET":
+        collection_id = request.args.get("collection_id")
+        if not collection_id:
+            return "collection_id is required to view the profile", 400
+        user_ref = paitent_collection.document(session["google_id"])
+        paitent_ref = user_ref.collection(collection_id).document(collection_id)
+        doc = paitent_ref.get()
+        if not doc.exists:
+            return "Patient data not found", 404
+
+        patient_data = {
+            "name": doc.get("name"),
             "insurance": doc.get("insurance"),
             "insurance_provider": doc.get("insurance_provider"),
             "location": doc.get("location"),
-            "sex": doc.get("sex")
-            }
-        # Redirect to the profile page after editing
-        return redirect(url_for("index"))
-    # If it's a GET request, just render the edit form
-    return render_template("edit_profile.html", patient=patient_data)
+            "sex": doc.get("sex"),
+            "collection_id": collection_id
+        }
+        return render_template("edit_profile.html", patient=patient_data)
+    else:
+        return "Invalid request method", 405  # Method Not Allowed
 
 @app.route("/save_text", methods=["POST"])
 def save_text():
@@ -259,7 +309,18 @@ def save_text():
     text = data.get("text")
     text =  formatted_time +":  "+ text
     source = data.get("source")
-    doc = doc_ref.get()
+    user_ref = paitent_collection.document(session["google_id"])
+
+    doc = user_ref.get()
+    if doc.exists:
+        patient_data = {"name": doc.get("name"),
+        "insurance": doc.get("insurance"),
+        "insurance_provider": doc.get("insurance_provider"),
+        "location": doc.get("location"),
+        "sex": doc.get("sex"),
+        "collection_id": doc.get("total_profile"),
+        }
+    paitent_ref = user_ref.collection(collection_id).document(collection_id)
 
     if source == "complaints-new":
         if doc.exists:

@@ -11,7 +11,7 @@
 <body>
     <div class="container">
         <h1>Edit Patient Profile</h1>
-        <form action="/edit-profile" method="POST">
+        <form action="/edit_profile" method="POST">
             <div class="profile-info">
                 <label for="name">Full Name:</label>
                 <input type="text" id="name" name="name" value="{{ patient.name }}" required>
@@ -33,7 +33,7 @@
                 <label for="insurance">Insurance No:</label>
                 <input type="text" id="insurance" name="insurance" value="{{ patient.insurance }}" required>
             </div>
-
+            <input type="hidden" id="collection_id" name="collection_id" value="{{ patient.collection_id }}">
             <button type="submit">Save Changes</button>
         </form>
     </div>

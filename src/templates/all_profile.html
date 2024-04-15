@@ -6,43 +6,32 @@
     <title>All Patient Profiles</title>
     <style>
         /* Add your CSS styling here */
-        table {
-            border-collapse: collapse;
-            width: 100%;
-        }
-        th, td {
+        .patient-card {
             border: 1px solid #dddddd;
-            text-align: left;
-            padding: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
         }
-        th {
-            background-color: #f2f2f2;
+        .patient-card h2 {
+            margin-top: 0;
+        }
+        .patient-card p {
+            margin: 8px 0;
         }
     </style>
 </head>
 <body>
     <h1>All Patient Profiles</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Insurance</th>
-                <th>Insurance Provider</th>
-                <th>Location</th>
-                <th>Sex</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for patient in patient_data %}
-            <tr>
-                <td>{{ patient.name }}</td>
-                <td>{{ patient.insurance }}</td>
-                <td>{{ patient.insurance_provider }}</td>
-                <td>{{ patient.location }}</td>
-                <td>{{ patient.sex }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="patient-container">
+        {% for patient in patient_data %}
+        <div class="patient-card">
+            <h2>{{ patient.name }}</h2>
+            <p><strong>Location:</strong> {{ patient.location }}</p>
+            <p><strong>Sex:</strong> {{ patient.sex }}</p>
+            <p><strong>Insurance:</strong> {{ patient.insurance }}</p>
+            <p><strong>Insurance Provider:</strong> {{ patient.insurance_provider }}</p>
+            <a href="/patient_profile?collection_id={{ patient.collection_id }}">Go to full profile</a>
+        </div>
+        {% endfor %}
+    </div>
 </body>
 </html>
