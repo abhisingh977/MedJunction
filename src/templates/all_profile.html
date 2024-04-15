@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Patient Profiles</title>
+    <style>
+        /* Add your CSS styling here */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>All Patient Profiles</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Insurance</th>
+                <th>Insurance Provider</th>
+                <th>Location</th>
+                <th>Sex</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patient_data %}
+            <tr>
+                <td>{{ patient.name }}</td>
+                <td>{{ patient.insurance }}</td>
+                <td>{{ patient.insurance_provider }}</td>
+                <td>{{ patient.location }}</td>
+                <td>{{ patient.sex }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

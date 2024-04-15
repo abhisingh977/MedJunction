@@ -110,7 +110,7 @@
 
         <div class="section">
             <h2>Upload New Report</h2>
-            <form action="/upload" method="POST" enctype="multipart/form-data">
+            <form action="/upload" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
                 <input type="file" name="file" id="fileInput" accept=".pdf, .jpg, .jpeg, .png">
                 <input type="text" name="filename" id="fileNameInput" placeholder="Enter file name">
                 <button type="submit">Upload</button>

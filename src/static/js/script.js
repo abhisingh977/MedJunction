@@ -148,3 +148,12 @@ function discardTextFromFlask(text, source) {
             console.error('Error:', error);
         });
 }
+
+function validateForm() {
+    var filename = document.getElementById("fileNameInput").value;
+    if (filename.trim() === "") {
+        alert("Please enter a report name.");
+        return false; // Prevent form submission
+    }
+    return true; // Allow form submission
+}

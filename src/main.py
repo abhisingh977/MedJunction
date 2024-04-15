@@ -7,13 +7,21 @@ from flask import (
     make_response,
     session,
     jsonify,
+    abort,
 )
+import requests
+
+import pathlib
+from pip._vendor import cachecontrol
+from google_auth_oauthlib.flow import Flow
+from google.oauth2 import id_token
 from google.cloud import firestore
 from uuid import uuid1
 from PIL import Image
 from io import BytesIO
 from datetime import datetime, timedelta
 # from dotenv import load_dotenv
+import google.auth.transport.requests
 import logging
 import os
 from google.cloud import storage
@@ -21,9 +29,22 @@ from werkzeug.utils import secure_filename
 from flask import send_file
 import pytz
 
+def login_is_required(function):
+    def wrapper(*args, **kwargs):
+        if "google_id" not in session:
+            return abort(401)  # Authorization required
+        else:
+            return function()
+
+    return wrapper
 
 logging.basicConfig(level=logging.INFO)
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "medjunction-8df36356d2d0.json" 
+GOOGLE_CLIENT_ID = 
+client_secrets_file = "client_secret.json"
+print(client_secrets_file)
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 # Get current Indian Standard Time (IST)
 ist = pytz.timezone('Asia/Kolkata')
 current_time = datetime.now(ist)
@@ -32,75 +53,161 @@ formatted_time = current_time.strftime("%d-%m-%Y")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf"}
 
 app = Flask("medjunction")
-
-session_uuid = str(uuid1())
-# Set the path where uploaded files will be saved
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
+app.secret_key = "medjunction"
 storage_client = storage.Client()
 bucket_name = "paitent_profile_bucket"
 db = firestore.Client(project="medjunction")
 paitent_collection = db.collection("paitent")
-doc_ref = paitent_collection.document("2")
-# doc_ref.set(
-#     {
-#     "name": "Abhis Doe",
-#     "sex": "Male",
-#     "location": "Gorakhpur, India",
-#     "insurance_provider": "star",
-#     "insurance": "AKJKJSDF123R3",
-# }
-# )
-# doc_ref.update(
-#     {"complaints_data":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
-
-# doc_ref.update(
-#     {"co_morbidities":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
 
 
-# doc_ref.update(
-#     {"hopi":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
+flow = Flow.from_client_secrets_file(
+    client_secrets_file=client_secrets_file,
+    scopes=[
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "openid",
+    ],
+    redirect_uri="http://127.0.0.1:8080/callback",
+)
 
-# doc_ref.update(
-#     {"surgery_history":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# doc_ref.update(
-#     {"addiction_history":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
+@app.route("/callback")
+def callback():
+    flow.fetch_token(authorization_response=request.url)
 
-# doc_ref.update(
-#     {"past_history":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
+    if not session["state"] == request.args["state"]:
+        abort(500)  # State does not match!
+
+    credentials = flow.credentials
+    request_session = requests.session()
+    cached_session = cachecontrol.CacheControl(request_session)
+    token_request = google.auth.transport.requests.Request(session=cached_session)
+
+    id_info = id_token.verify_oauth2_token(
+        id_token=credentials._id_token,
+        request=token_request,
+        audience=GOOGLE_CLIENT_ID
+    )
+
+    session["google_id"] = id_info.get("sub")
+    session["given_name"] = id_info.get("given_name")
+    session["family_name"] = id_info.get("family_name")
+    session["email"] = id_info.get("email")
+    session["locale"] = id_info.get("locale")
+
+    doc_ref = paitent_collection.document(id_info.get("sub"))
+    doc = doc_ref.get()
+    if doc.exists:
+        field_value = doc.get("count")
+        doc_ref.update({"count": field_value + 1})
+    else:
+        doc_ref.set(
+            {
+                "given_name": id_info.get("given_name"),
+                "family_name": id_info.get("family_name"),
+                "email": id_info.get("email"),
+                "locale": id_info.get("locale"),
+                "picture": id_info.get("picture"),
+                "count": 0,
+                "total_profile": "0",
+            }
+        )
+
+    return redirect("/authed_user")
+
+@app.route("/authed_user")
+def authed_user():
+    return render_template("home.html")
+
+@app.route("/login")
+def login():
+    authorization_url, state = flow.authorization_url()
+    session["state"] = state
+    return redirect(authorization_url)
 
 
-# doc_ref.update(
-#     {"reports":["27/Mar/2024: Complaint 1, Complaint 2",
-#     "29/Mar/2024:  Complaint 3",]}
-# )
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
+@app.route("/protected_area")
+@login_is_required
+def protected_area():
+    return f"Hello {session['name']}! <br/> <a href='/logout'><button>Logout</button></a>"
 
 @app.route("/")
 def index():
 
-    doc = doc_ref.get()
-    print(doc)
+    if "google_id" in session:
+        # User is already logged in, redirect to the main page
+        doc_ref = paitent_collection.document(session["google_id"])
+        doc = doc_ref.get()
+        
+    return render_template("login_page.html")
+
+@app.route("/get_all_profile")
+def get_all_profile():
+    doc_ref = paitent_collection.document(session["google_id"])
+
     if doc.exists:
         patient_data = {"name": doc.get("name"),
         "insurance": doc.get("insurance"),
         "insurance_provider": doc.get("insurance_provider"),
         "location": doc.get("location"),
-        "sex": doc.get("sex")
+        "sex": doc.get("sex"),
+        "total_profile": doc.get("total_profile")
+        }
+
+    return render_template("all_profile.html", patient_data=patient_data)
+
+@app.route("/create_profile", methods=["GET", "POST"])
+def create_profile():
+
+    if request.method == "POST":
+        user_ref = paitent_collection.document(session["google_id"])
+        doc = user_ref.get()
+        if doc.exists:
+            total_profile = int(doc.get("total_profile")) + 1
+            user_ref.update({"total_profile": str(total_profile)})
+
+        paitent_ref = user_ref.collection(str(total_profile)).document(str(total_profile))
+        print(f"{paitent_ref} data")
+        paitent_ref.set(
+        {
+        "name": request.form["name"],
+        "sex": request.form["sex"],
+        "location": request.form["location"],
+        "insurance_provider": request.form["insurance"],
+        "insurance": request.form["insurance_provider"],
+        })
+        doc = paitent_ref.get()
+        if doc.exists:
+            patient_data = {"name": doc.get("name"),
+            "insurance": doc.get("insurance"),
+            "insurance_provider": doc.get("insurance_provider"),
+            "location": doc.get("location"),
+            "sex": doc.get("sex")
+            }
+        # Redirect to the profile page after editing
+        return render_template("home.html")
+    # If it's a GET request, just render the edit form
+    return render_template("create_profile.html")
+
+@app.route("/patient_profile")
+def patient_profile():
+
+    doc_ref = paitent_collection.document(session["google_id"])
+    doc = doc_ref.get()
+    if doc.exists:
+        patient_data = {
+            "name": doc.get("name"),
+            "insurance": doc.get("insurance"),
+            "insurance_provider": doc.get("insurance_provider"),
+            "location": doc.get("location"),
+            "sex": doc.get("sex"),
         }
 
         complaints_data = doc.get("complaints_data")
@@ -110,7 +217,7 @@ def index():
         surgery_history = doc.get("surgery_history")
         reports = doc.get("reports")
     else:
-        return "Profile does not exists"
+        return "Profile does not exist"
     return render_template(
         "patient_profile.html",
         patient=patient_data,
@@ -121,20 +228,6 @@ def index():
         surgery_history=reversed(surgery_history),
         reports=reversed(reports),
     )
-
-@app.route('/edit_profile_page')
-def edit_profile_page():
-    doc = doc_ref.get()
-
-    if doc.exists:
-        patient_data = {"name": doc.get("name"),
-        "insurance": doc.get("insurance"),
-        "insurance_provider": doc.get("insurance_provider"),
-        "location": doc.get("location"),
-        "sex": doc.get("sex")
-        }
-    return render_template('edit_profile.html',patient=patient_data)
-
 
 @app.route("/edit-profile", methods=["GET", "POST"])
 def edit_profile():
@@ -293,4 +386,4 @@ def download_file(filename):
     return "File not found", 404
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8081)
+    app.run(debug=True, port=8080)
