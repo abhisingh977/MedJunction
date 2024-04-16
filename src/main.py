@@ -29,6 +29,17 @@ from werkzeug.utils import secure_filename
 from flask import send_file
 import pytz
 
+folder_name = "patient_profile_bucket"
+
+# Check if the folder exists
+if not os.path.exists(folder_name):
+    # If it doesn't exist, create it
+    os.makedirs(folder_name)
+    print(f"Folder '{folder_name}' created successfully.")
+else:
+    print(f"Folder '{folder_name}' already exists.")
+
+
 def login_is_required(function):
     def wrapper(*args, **kwargs):
         if "google_id" not in session:
@@ -170,7 +181,7 @@ def create_profile():
             user_ref.update({"total_profile": str(total_profile)})
         total_profile_str = str(total_profile)
         paitent_ref = user_ref.collection(total_profile_str).document(total_profile_str)
-        print(f"{paitent_ref} data")
+
         paitent_ref.set(
         {
         "name": request.form["name"],
@@ -179,6 +190,12 @@ def create_profile():
         "insurance_provider": request.form["insurance"],
         "insurance": request.form["insurance_provider"],
         "collection_id": total_profile_str,
+        "complaints_data": [],
+        "co_morbidities": [],
+        "past_history": [],
+        "addiction_history": [],
+        "surgery_history": [],
+        "reports": [],
         })
         doc = paitent_ref.get()
         if doc.exists:
@@ -199,7 +216,7 @@ def patient_profile():
     collection_id = request.args.get("collection_id")
     if not collection_id:
         return "collection_id is required to view the profile"
-    
+    session["collection_id"] = collection_id
     user_ref = paitent_collection.document(session["google_id"])
     paitent_ref = user_ref.collection(collection_id).document(collection_id)
     doc = paitent_ref.get()
@@ -212,36 +229,12 @@ def patient_profile():
             "sex": doc.get("sex"),
             "collection_id": doc.get("collection_id"),
         }
-
-        try:
-            complaints_data = doc.get("complaints_data")
-        except KeyError:
-            complaints_data = []
-
-        try:
-            co_morbidities = doc.get("co_morbidities")
-        except KeyError:
-            co_morbidities = []
-
-        try:
-            past_history = doc.get("past_history")
-        except KeyError:
-            past_history = []
-
-        try:
-            addiction_history = doc.get("addiction_history")
-        except KeyError:
-            addiction_history = []
-
-        try:
-            surgery_history = doc.get("surgery_history")
-        except KeyError:
-            surgery_history = []
-
-        try:
-            reports = doc.get("reports")
-        except KeyError:
-            reports = []
+        complaints_data = doc.get("complaints_data")
+        co_morbidities = doc.get("co_morbidities")
+        past_history = doc.get("past_history")
+        addiction_history = doc.get("addiction_history")
+        surgery_history = doc.get("surgery_history")
+        reports = doc.get("reports")
 
 
     else:
@@ -263,6 +256,7 @@ def edit_profile():
         collection_id = request.form.get("collection_id")
         if not collection_id:
             return "collection_id is required to view the profile", 400  # Return a 400 Bad Request status
+        session["collection_id"] = collection_id
         user_ref = paitent_collection.document(session["google_id"])
         paitent_ref = user_ref.collection(collection_id).document(collection_id)
         doc = paitent_ref.get()
@@ -299,6 +293,7 @@ def edit_profile():
             "sex": doc.get("sex"),
             "collection_id": collection_id
         }
+        session["collection_id"] = collection_id
         return render_template("edit_profile.html", patient=patient_data)
     else:
         return "Invalid request method", 405  # Method Not Allowed
@@ -310,47 +305,39 @@ def save_text():
     text =  formatted_time +":  "+ text
     source = data.get("source")
     user_ref = paitent_collection.document(session["google_id"])
-
-    doc = user_ref.get()
-    if doc.exists:
-        patient_data = {"name": doc.get("name"),
-        "insurance": doc.get("insurance"),
-        "insurance_provider": doc.get("insurance_provider"),
-        "location": doc.get("location"),
-        "sex": doc.get("sex"),
-        "collection_id": doc.get("total_profile"),
-        }
+    collection_id = session["collection_id"] 
+    print(collection_id)
     paitent_ref = user_ref.collection(collection_id).document(collection_id)
-
+    doc = paitent_ref.get()
     if source == "complaints-new":
         if doc.exists:
             complaints_data=doc.get("complaints_data")
             complaints_data.append(text)
-            doc_ref.update({"complaints_data": complaints_data})
+            paitent_ref.update({"complaints_data": complaints_data})
         
     elif source == "co-morbidities-new":
         if doc.exists:
             co_morbidities=doc.get("co_morbidities")
             co_morbidities.append(text)
-            doc_ref.update({"co_morbidities": co_morbidities})
+            paitent_ref.update({"co_morbidities": co_morbidities})
         
     elif source == "surgery-history-new":
         if doc.exists:
             surgery_history=doc.get("surgery_history")
             surgery_history.append(text)
-            doc_ref.update({"surgery_history": surgery_history})
+            paitent_ref.update({"surgery_history": surgery_history})
         
     elif source == "past-history-new":
         if doc.exists:
             past_history=doc.get("past_history")
             past_history.append(text)
-            doc_ref.update({"past_history": past_history})
+            paitent_ref.update({"past_history": past_history})
         
     elif source == "addiction-history-new":
         if doc.exists:
             addiction_history=doc.get("addiction_history")
             addiction_history.append(text)
-            doc_ref.update({"addiction_history": addiction_history})
+            paitent_ref.update({"addiction_history": addiction_history})
         
     # Here you can save the text to your database or perform any other required action
     print("Received text:", text)
@@ -362,48 +349,73 @@ def discard_text():
     data = request.json
     text = data.get("text")
     source = data.get("source")
-    doc = doc_ref.get()
+    user_ref = paitent_collection.document(session["google_id"])
+    collection_id = session["collection_id"] 
+
+    paitent_ref = user_ref.collection(collection_id).document(collection_id)
+    doc = paitent_ref.get()
+
     if source == "complaints-new":
-        if doc.exists:
-            complaints_data=doc.get("complaints_data")
-            for i in reversed(range(len(complaints_data))):
-                if text in complaints_data[i]:
-                    complaints_data.pop(i)
-            doc_ref.update({"complaints_data": complaints_data})
+        complaints_data=doc.get("complaints_data")
+        for i in reversed(range(len(complaints_data))):
+            if text in complaints_data[i]:
+                complaints_data.pop(i)
+        paitent_ref.update({"complaints_data": complaints_data})
+
     elif source == "co-morbidities-new":
         co_morbidities=doc.get("co_morbidities")
         for i in reversed(range(len(co_morbidities))):
             if text in co_morbidities[i]:
                 co_morbidities.pop(i)
-        doc_ref.update({"co_morbidities": co_morbidities})
+        paitent_ref.update({"co_morbidities": co_morbidities})
+
     elif source == "surgery-history-new":
         surgery_history=doc.get("surgery_history")
         for i in reversed(range(len(surgery_history))):
             if text in surgery_history[i]:
                 surgery_history.pop(i)
-        doc_ref.update({"surgery_history": surgery_history})
+        paitent_ref.update({"surgery_history": surgery_history})
+
     elif source == "past-history-new":
         past_history=doc.get("past_history")
         for i in reversed(range(len(past_history))):
             if text in past_history[i]:
                 past_history.pop(i)
-        doc_ref.update({"past_history": past_history})
+        paitent_ref.update({"past_history": past_history})
+
     elif source == "addiction-history-new":
         addiction_history=doc.get("addiction_history")
         for i in reversed(range(len(addiction_history))):
             if text in addiction_history[i]:
                 addiction_history.pop(i)
-        doc_ref.update({"addiction_history": addiction_history})
+        paitent_ref.update({"addiction_history": addiction_history})
 
     print("Discarded text:", text)
     return jsonify({"success": True})
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    doc = doc_ref.get()
-    reports=doc.get("reports")
-    print("reports")
-    print(reports)
+    user_ref = paitent_collection.document(session["google_id"])
+    collection_id = session["collection_id"] 
+    paitent_ref = user_ref.collection(collection_id).document(collection_id)
+    doc = paitent_ref.get()
+    if doc.exists:
+        patient_data = {
+            "name": doc.get("name"),
+            "insurance": doc.get("insurance"),
+            "insurance_provider": doc.get("insurance_provider"),
+            "location": doc.get("location"),
+            "sex": doc.get("sex"),
+            "collection_id": doc.get("collection_id"),
+        }
+        complaints_data = doc.get("complaints_data")
+        co_morbidities = doc.get("co_morbidities")
+        past_history = doc.get("past_history")
+        addiction_history = doc.get("addiction_history")
+        surgery_history = doc.get("surgery_history")
+        reports = doc.get("reports")
+
+
     if request.method == "POST":
         file = request.files["file"]
         filename = secure_filename(file.filename)
@@ -412,7 +424,7 @@ def upload_file():
         custom_filename = request.form["filename"]
         filename = f"{formatted_time} {custom_filename}.{file_extension}"
         reports.append(filename)
-        doc_ref.update({"reports": reports})
+        paitent_ref.update({"reports": reports})
         if file:
             # Upload file to Google Cloud Storage
             bucket = storage_client.bucket(bucket_name)
@@ -421,7 +433,7 @@ def upload_file():
             reports.append(filename)  # Append the URL instead of the file object
         else:
             return "Error uploading. Please try again!!!!"
-        return redirect(url_for("index"))
+        return redirect(url_for("patient_profile", collection_id=patient_data["collection_id"]))
 
 @app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):
