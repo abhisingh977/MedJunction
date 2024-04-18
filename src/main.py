@@ -17,7 +17,6 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.cloud import firestore
 from uuid import uuid1
-from PIL import Image
 from io import BytesIO
 from datetime import datetime, timedelta
 # from dotenv import load_dotenv
@@ -28,6 +27,7 @@ from google.cloud import storage
 from werkzeug.utils import secure_filename
 from flask import send_file
 import pytz
+import json 
 
 folder_name = "patient_profile_bucket"
 
@@ -49,12 +49,16 @@ def login_is_required(function):
 
     return wrapper
 
+with open('client_secret.json', 'r') as file:
+    # Load the JSON data from the file
+    data = json.load(file)
+
+google_client_id = data["web"]["client_id"]
 logging.basicConfig(level=logging.INFO)
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "medjunction-8df36356d2d0.json" 
-GOOGLE_CLIENT_ID = "460397404581-3qu7r9if8aqsdi2nv5a3g8cvuet8dmc8.apps.googleusercontent.com"
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "medjunction.json" 
+GOOGLE_CLIENT_ID = google_client_id
 client_secrets_file = "client_secret.json"
-print(client_secrets_file)
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 # Get current Indian Standard Time (IST)
 ist = pytz.timezone('Asia/Kolkata')
@@ -78,7 +82,7 @@ flow = Flow.from_client_secrets_file(
         "https://www.googleapis.com/auth/userinfo.email",
         "openid",
     ],
-    redirect_uri="http://127.0.0.1:8080/callback",
+    redirect_uri="https://medjunction-7dvpsozs3a-uc.a.run.app/callback",
 )
 
 def allowed_file(filename):
@@ -458,5 +462,44 @@ def download_file(filename):
     # If the file doesn't exist, return a 404 error
     return "File not found", 404
 
+@app.route('/create_hospital')
+def create_hospital():
+    return render_template("create_hospital.html")
+
+@app.route('/submit_hospital', methods=['POST'])
+def submit_hospital():
+    if request.method == "POST":
+        hospital_name = request.form.get('hospital_name')
+        state = request.form.get('state')
+        city = request.form.get('city')
+        address = request.form.get('address')
+        contact = request.form.get('contact')
+        insurance = request.form.getlist('insurance')
+
+        # Push data to Firestore
+        hospital_ref = db.collection('hospitals').document()
+        hospital_ref.set({
+            'hospital_name': hospital_name,
+            'address': address,
+            'contact': contact,
+            'state': state,
+            'city': city,
+            'insurance': insurance
+        })
+
+    return render_template("create_hospital.html")
+
+
+@app.route('/get_hospital')
+def get_hospital():
+    hospitals = []
+    # Retrieve hospitals from Firestore
+    hospitals_ref = db.collection('hospitals').stream()
+    for hospital in hospitals_ref:
+        hospitals.append(hospital.to_dict())
+
+    return render_template("get_hospital.html", hospitals=hospitals)
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=8080)
+    app.run(debug=True, host="0.0.0.0", port=os.getenv("PORT", 8080))

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List of Hospitals</title>
+    <style>
+        .hospital-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .hospital-card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            width: 300px;
+            height: 250px; /* Set a fixed height for all cards */
+        }
+        .hospital-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .hospital-info {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Partnered Hospitals</h1>
+    <div class="hospital-container">
+        {% for hospital in hospitals %}
+        <div class="hospital-card">
+            <div class="hospital-name">{{ hospital.hospital_name }}</div>
+            <div class="hospital-info">
+                <p><strong>Address:</strong> {{ hospital.address }}</p>
+                <p><strong>Contact:</strong> {{ hospital.contact }}</p>
+                <p><strong>State:</strong> {{ hospital.state }}</p>
+                <p><strong>City:</strong> {{ hospital.city }}</p>
+                <p><strong>Insurance:</strong> {{ hospital.insurance }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
