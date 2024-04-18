@@ -28,6 +28,8 @@ from werkzeug.utils import secure_filename
 from flask import send_file
 import pytz
 import json 
+from flask_cors import CORS
+import google.auth.exceptions
 
 folder_name = "patient_profile_bucket"
 
@@ -69,6 +71,9 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "pdf"}
 
 app = Flask("medjunction")
 app.secret_key = "medjunction"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)  # Set session expiry to 30 minutes
+# session.regenerate()
+CORS(app)
 storage_client = storage.Client()
 bucket_name = "paitent_profile_bucket"
 db = firestore.Client(project="medjunction")
@@ -90,47 +95,60 @@ def allowed_file(filename):
 
 @app.route("/callback")
 def callback():
-    flow.fetch_token(authorization_response=request.url)
+    try:
+        # Fetch token
+        flow.fetch_token(authorization_response=request.url)
 
-    if not session["state"] == request.args["state"]:
-        abort(500)  # State does not match!
+        # Verify state
+        if session.get("state") != request.args.get("state"):
+            return redirect_with_error("/login", "State does not match!")
 
-    credentials = flow.credentials
-    request_session = requests.session()
-    cached_session = cachecontrol.CacheControl(request_session)
-    token_request = google.auth.transport.requests.Request(session=cached_session)
+        credentials = flow.credentials
+        request_session = requests.session()
+        cached_session = cachecontrol.CacheControl(request_session)
+        token_request = google.auth.transport.requests.Request(session=cached_session)
 
-    id_info = id_token.verify_oauth2_token(
-        id_token=credentials._id_token,
-        request=token_request,
-        audience=GOOGLE_CLIENT_ID
-    )
-
-    session["google_id"] = id_info.get("sub")
-    session["given_name"] = id_info.get("given_name")
-    session["family_name"] = id_info.get("family_name")
-    session["email"] = id_info.get("email")
-    session["locale"] = id_info.get("locale")
-
-    doc_ref = paitent_collection.document(id_info.get("sub"))
-    doc = doc_ref.get()
-    if doc.exists:
-        field_value = doc.get("count")
-        doc_ref.update({"count": field_value + 1})
-    else:
-        doc_ref.set(
-            {
-                "given_name": id_info.get("given_name"),
-                "family_name": id_info.get("family_name"),
-                "email": id_info.get("email"),
-                "locale": id_info.get("locale"),
-                "picture": id_info.get("picture"),
-                "count": 0,
-                "total_profile": "0",
-            }
+        # Verify ID token
+        id_info = id_token.verify_oauth2_token(
+            id_token=credentials._id_token,
+            request=token_request,
+            audience=GOOGLE_CLIENT_ID
         )
 
-    return redirect("/authed_user")
+        # Update session
+        session["google_id"] = id_info.get("sub")
+        session["given_name"] = id_info.get("given_name")
+        session["family_name"] = id_info.get("family_name")
+        session["email"] = id_info.get("email")
+        session["locale"] = id_info.get("locale")
+
+        # Update Firestore
+        doc_ref = paitent_collection.document(id_info.get("sub"))
+        doc = doc_ref.get()
+        if doc.exists:
+            field_value = doc.get("count")
+            doc_ref.update({"count": field_value + 1})
+        else:
+            doc_ref.set(
+                {
+                    "given_name": id_info.get("given_name"),
+                    "family_name": id_info.get("family_name"),
+                    "email": id_info.get("email"),
+                    "locale": id_info.get("locale"),
+                    "picture": id_info.get("picture"),
+                    "count": 0,
+                    "total_profile": "0",
+                }
+            )
+
+        return redirect("/authed_user")
+    except google.auth.exceptions.GoogleAuthError as e:
+        logging.error("Google Authentication Error: %s", e)
+        return redirect_with_error("/login", "Error occurred during authentication.")
+    except Exception as e:
+        logging.error("Callback Error: %s", e)
+        return redirect_with_error("/login", "An unexpected error occurred.")
+
 
 @app.route("/authed_user")
 def authed_user():
@@ -138,20 +156,24 @@ def authed_user():
 
 @app.route("/login")
 def login():
-    authorization_url, state = flow.authorization_url()
-    session["state"] = state
-    return redirect(authorization_url)
+    try:
+        authorization_url, state = flow.authorization_url()
+        session["state"] = state
+        login_error = session.pop("login_error", None)
+        return redirect(authorization_url)
+    except Exception as e:
+        logging.error("Login Error: %s", e)
+        return "Error occurred during login."
+
+def redirect_with_error(url, error_message):
+    session["login_error"] = error_message
+    return redirect(url)
 
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
-
-@app.route("/protected_area")
-@login_is_required
-def protected_area():
-    return f"Hello {session['name']}! <br/> <a href='/logout'><button>Logout</button></a>"
 
 @app.route("/")
 def index():
